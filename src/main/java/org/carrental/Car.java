@@ -4,9 +4,6 @@ public class Car {
     private final CarType carType;
     private Status status;
 
-    public boolean isAvailable() {
-    }
-
     enum CarType {
         SEDAN, SUV, VAN
     }
@@ -23,8 +20,16 @@ public class Car {
         return status;
     }
 
-    public void setStatus(Status status) {
-        this.status = status;
+    public void markAvailable() {
+        this.status = Status.AVAILABLE;
+    }
+
+    public void markReserved() {
+        this.status = Status.RESERVED;
+    }
+
+    public void markRented() {
+        this.status = Status.RENTED;
     }
 
     public Car(CarType carType, Status status) {
