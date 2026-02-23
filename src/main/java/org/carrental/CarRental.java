@@ -67,13 +67,15 @@ public class CarRental {
     }
 
     public void startRental(String orderId) {
-        Order order = getOrder(orderId);
-        if (order.status() != OrderStatus.RESERVED) {
-            throw new IllegalStateException(
-                "Cannot start rental for order " + orderId + ": expected status RESERVED but was " + order.status()
-            );
+        synchronized (this) {
+            Order order = getOrder(orderId);
+            if (order.status() != OrderStatus.RESERVED) {
+                throw new IllegalStateException(
+                        "Cannot start rental for order " + orderId + ": expected status RESERVED but was " + order.status()
+                );
+            }
+            order.setStatus(OrderStatus.IN_PROGRESS);
         }
-        order.setStatus(OrderStatus.IN_PROGRESS);
     }
 
     public void cancel(String orderId) {
