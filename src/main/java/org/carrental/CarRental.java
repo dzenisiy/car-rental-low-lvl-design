@@ -1,23 +1,41 @@
 package org.carrental;
 
+import org.carrental.car.Car;
+import org.carrental.car.CarType;
+import org.carrental.order.Order;
+
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
+import java.time.temporal.ChronoUnit;
 
 public class CarRental {
 
-    private Map<Car.CarType, Queue<Car>> cars;
-    private Map<String, Order> activeOrders;
+    private final Map<CarType, Queue<Car>> cars;
+    private final Map<String, Order> activeOrders = new HashMap<>();
+    //TODO: store order history
 
-    public CarRental(Map<Car.CarType, Queue<Car>> cars) {
+    public CarRental(Map<CarType, Queue<Car>> cars) {
         this.cars = cars;
     }
 
-    public Order reserve(Car.CarType carType, Instant startTime, int days) {
+    public Order reserve(CarType carType, Instant startTime, int days) {
+        if (carType == null) {
+            throw new IllegalArgumentException("CarType cannot be null");
+        }
+        if (startTime == null) {
+            throw new IllegalArgumentException("Start time cannot be null");
+        }
+        if (days <= 0) {
+            throw new IllegalArgumentException("Days must be positive, got: " + days);
+        }
+
         synchronized (this) {
             Queue<Car> availableCars = cars.get(carType);
             if (availableCars == null || availableCars.isEmpty()) {
+                //TODO: offer a car of another type
                 throw new IllegalStateException("No cars of type " + carType + " are available");
             }
 
@@ -26,7 +44,7 @@ public class CarRental {
         }
     }
 
-    private static Car getCar(Queue<Car> availableCars) {
+    private Car getCar(Queue<Car> availableCars) {
         Car car = availableCars.poll();
         if (car == null) {
             throw new IllegalStateException("No cars are available");
@@ -36,11 +54,10 @@ public class CarRental {
     }
 
     private Order generateOrder(Car car, Instant startTime, int days) {
-        Instant endTime = startTime.plusSeconds(days * 24 * 60 * 60);
+        Instant endTime = startTime.plus(days, ChronoUnit.DAYS);
         String orderId = generateOrderId();
         Order order = new Order(orderId, car, startTime, endTime);
         activeOrders.put(order.orderId(), order);
-        car.markReserved();
         return order;
     }
 
@@ -50,10 +67,8 @@ public class CarRental {
 
     public void cancel(String orderId) {
         synchronized (this) {
-            Order order = getOrder(orderId);
-
+            returnCarToStorage(getOrder(orderId).car());
             activeOrders.remove(orderId);
-            order.car().markAvailable();
         }
     }
 
@@ -62,24 +77,28 @@ public class CarRental {
         if (order == null) {
             throw new IllegalArgumentException("Order with ID " + orderId + " does not exist");
         }
+
         return order;
-    }
-
-    public Car takeCar(String orderId) {
-        Order order = getOrder(orderId);
-
-        order.car().markRented();
-        return order.car();
     }
 
     public void returnCar(String orderId, int newMileage) {
         synchronized (this) {
-            Order order = getOrder(orderId);
-            Car car = order.car();
-            car.markAvailable();
+            Car car = getOrder(orderId).car();
+            if (newMileage < car.getMileage()) {
+                throw new IllegalArgumentException(
+                    "New mileage (" + newMileage + ") cannot be less than current mileage (" + car.getMileage() + ")"
+                );
+            }
+            car.setMileage(newMileage);
 
-            cars.get(order.car().getCarType()).offer(order.car());
+            returnCarToStorage(car);
             activeOrders.remove(orderId);
+        }
+    }
+
+    private void returnCarToStorage(Car car) {
+        if (!cars.get(car.getCarType()).offer(car)) {
+            throw new IllegalStateException("Failed to return car to storage: " + car.getId());
         }
     }
 }

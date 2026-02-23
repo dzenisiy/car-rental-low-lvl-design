@@ -13,7 +13,7 @@ Requirements Analysis
 3. System creates an Order as user makes reservation
 4. Price depends on the type of car and the number of days reserved.
 5. There is a limitation on the number of cars available for each type.
-6.  Concurrent booking of the same car: exactly one succeeds
+6. Concurrent booking of the same car: exactly one succeeds
 
 
 Out of scope
