@@ -3,6 +3,7 @@ package org.carrental;
 import org.carrental.car.Car;
 import org.carrental.car.CarType;
 import org.carrental.order.Order;
+import org.carrental.order.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -259,6 +260,81 @@ class CarRentalTest {
         });
 
         assertTrue(exception.getMessage().contains("cannot be less than current mileage"));
+    }
+
+    // ==================== Order Status Tests ====================
+
+    @Test
+    void testReserveOrderHasReservedStatus() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+
+        assertEquals(OrderStatus.RESERVED, order.status());
+    }
+
+    @Test
+    void testStartRentalTransitionsToInProgress() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+
+        carRental.startRental(order.orderId());
+
+        assertEquals(OrderStatus.IN_PROGRESS, order.status());
+    }
+
+    @Test
+    void testCancelOrderHasCancelledStatus() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+
+        carRental.cancel(order.orderId());
+
+        assertEquals(OrderStatus.CANCELLED, order.status());
+    }
+
+    @Test
+    void testReturnCarOrderHasCompletedStatus() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+
+        carRental.returnCar(order.orderId(), order.car().getMileage());
+
+        assertEquals(OrderStatus.COMPLETED, order.status());
+    }
+
+    @Test
+    void testStartRentalOnNonExistentOrder() {
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+            carRental.startRental("non-existent-order-id")
+        );
+
+        assertTrue(exception.getMessage().contains("does not exist"));
+    }
+
+    @Test
+    void testStartRentalOnAlreadyInProgressOrder() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+        carRental.startRental(order.orderId());
+
+        Exception exception = assertThrows(IllegalStateException.class, () ->
+            carRental.startRental(order.orderId())
+        );
+
+        assertTrue(exception.getMessage().contains("expected status RESERVED but was IN_PROGRESS"));
+    }
+
+    @Test
+    void testStartRentalOnCancelledOrder() {
+        Instant startTime = Instant.now().plus(1, ChronoUnit.DAYS);
+        Order order = carRental.reserve(CarType.SEDAN, startTime, 5);
+        carRental.cancel(order.orderId());
+
+        Exception exception = assertThrows(java.lang.IllegalArgumentException.class, () ->
+            carRental.startRental(order.orderId())
+        );
+
+        assertTrue(exception.getMessage().contains("does not exist"));
     }
 
     // ==================== Concurrency Tests ====================

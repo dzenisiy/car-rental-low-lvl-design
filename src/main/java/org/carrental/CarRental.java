@@ -3,6 +3,7 @@ package org.carrental;
 import org.carrental.car.Car;
 import org.carrental.car.CarType;
 import org.carrental.order.Order;
+import org.carrental.order.OrderStatus;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -56,7 +57,7 @@ public class CarRental {
     private Order generateOrder(Car car, Instant startTime, int days) {
         Instant endTime = startTime.plus(days, ChronoUnit.DAYS);
         String orderId = generateOrderId();
-        Order order = new Order(orderId, car, startTime, endTime);
+        Order order = new Order(orderId, car, startTime, endTime, OrderStatus.RESERVED);
         activeOrders.put(order.orderId(), order);
         return order;
     }
@@ -65,9 +66,21 @@ public class CarRental {
         return UUID.randomUUID().toString();
     }
 
+    public void startRental(String orderId) {
+        Order order = getOrder(orderId);
+        if (order.status() != OrderStatus.RESERVED) {
+            throw new IllegalStateException(
+                "Cannot start rental for order " + orderId + ": expected status RESERVED but was " + order.status()
+            );
+        }
+        order.setStatus(OrderStatus.IN_PROGRESS);
+    }
+
     public void cancel(String orderId) {
         synchronized (this) {
-            returnCarToStorage(getOrder(orderId).car());
+            Order order = getOrder(orderId);
+            order.setStatus(OrderStatus.CANCELLED);
+            returnCarToStorage(order.car());
             activeOrders.remove(orderId);
         }
     }
@@ -83,7 +96,8 @@ public class CarRental {
 
     public void returnCar(String orderId, int newMileage) {
         synchronized (this) {
-            Car car = getOrder(orderId).car();
+            Order order = getOrder(orderId);
+            Car car = order.car();
             if (newMileage < car.getMileage()) {
                 throw new IllegalArgumentException(
                     "New mileage (" + newMileage + ") cannot be less than current mileage (" + car.getMileage() + ")"
@@ -91,6 +105,7 @@ public class CarRental {
             }
             car.setMileage(newMileage);
 
+            order.setStatus(OrderStatus.COMPLETED);
             returnCarToStorage(car);
             activeOrders.remove(orderId);
         }

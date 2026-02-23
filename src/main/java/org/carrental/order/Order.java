@@ -7,9 +7,31 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
-public record Order(String orderId, Car car, Instant startTime, Instant endTime) {
+public class Order {
 
-    // TODO: add order state (RESERVED, ACTIVE, COMPLETED, CANCELLED)
+    private final String orderId;
+    private final Car car;
+    private final Instant startTime;
+    private final Instant endTime;
+    private OrderStatus status;
+
+    public Order(String orderId, Car car, Instant startTime, Instant endTime, OrderStatus status) {
+        this.orderId = orderId;
+        this.car = car;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.status = status;
+    }
+
+    public String orderId() { return orderId; }
+    public Car car() { return car; }
+    public Instant startTime() { return startTime; }
+    public Instant endTime() { return endTime; }
+    public OrderStatus status() { return status; }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
 
     public BigDecimal calculatePrice() {
         final BigDecimal pricePerDay = switch (car.getCarType()) {
